@@ -1,0 +1,673 @@
+"""
+Quoridor student player starter file
+ 
+Author: Adam Oest
+Date: July, 2012
+"""
+
+from .myNode import *
+from .myQueue import *
+from .myStack import *
+import random
+import copy
+# If you get this error checked for in the code that follows
+# this comment, either run quoridor.py or
+# create a new file in the same directory as quoridor.py,
+# in which you import your module and call your own functions
+# for testing purposes
+if __name__ == "__main__":
+    import sys
+    sys.stderr.write("You cannot run this file on its own.")
+    sys.exit()
+
+# Imports the player move class as well as the board size constant
+from Model.interface import PlayerMove, BOARD_DIM
+from .playerData import PlayerData
+from .playerData import *
+def init(logger, playerId, numWalls, playerHomes):
+    """
+        Part 1 - 4
+    
+        The engine calls this function once at the beginning of the game.
+        The student player module uses this function to initialize its data
+        structures to the initial game state.
+
+        Parameters
+            logger: a reference to the logger object. The player model uses
+                logger.write(msg) and logger.error(msg) to log diagnostic
+                information.
+                
+            playerId: this player's number, from 1 to 4
+        
+            numWalls: the number of walls each player is given initially
+            
+            playerHomes: An ordered tuple of player locations
+                         A location is a 2-element tuple of (row,column).
+                         If any player has already been eliminated from
+                         the game (rare), there will be a bool False in
+                         that player's spot in the tuple instead of a
+                         location.
+                    
+        returns:
+            a PlayerData object containing all of this player module's data
+    """
+    
+    # This is where you must initialize all the information in your PlayerData
+    # object. It should store things like how many players and initial
+    # configuration of the board.
+    #
+    # Sample code body
+    #
+    # In the example code body below, the PlayerData class contained in the
+    # file playerData.py is just used as an example. Feel free to alter it.
+    # Just make sure it contains everything you need.
+    def mkBoard():
+        board = [[None]*9 for ch in range(9)]
+        for r in range(9):
+            for c in range(9):
+                temp = [r,c]
+                board[r][c] = playerData.Tile(r,c, temp)
+                
+        return board
+    def find_neighbors(board):
+        for Row in range(0, 9):
+            for Col in range(0, 9):
+                if Row != 8:
+                    board[Row][Col].neighbors.append(board[Row+1][Col])
+                if Row != 0:
+                    board[Row][Col].neighbors.append(board[Row-1][Col])
+                if Col != 8:
+                    board[Row][Col].neighbors.append(board[Row][Col+1])
+                if Col != 0:
+                    board[Row][Col].neighbors.append(board[Row][Col-1])           
+        return board
+    board = mkBoard()
+    board = find_neighbors(board)
+    playerData.playerHomes=(playerHomes)
+    playerData.logger = logger
+    playerData.playerId=playerId
+    print(playerHomes)
+    playerData.board = board
+    playerData.numPlayers=len(playerHomes)
+    playerData.playerLocations=list(playerHomes)
+    playerData.walls=[]
+    playerData.moveLog=[]
+    playerData.numWalls=(20/len(playerHomes))
+    """
+    walls = playerData.config['NUM_WALLS'][len(playerData.model.playerHomes)]
+    if len(playerData.model.playerHomes) == 1:
+        numWalls = {'1': walls}
+    elif len(playerData.model.playerHomes) == 2:
+        numWalls = {'1': walls, '2': walls}
+    elif len(playerData.model.playerHomes) == 4:
+        numWalls = {'1': walls, '2': walls, '3': walls, '4': walls}
+    playerData.numWalls = numWalls
+    """
+    
+    
+    for ch in range(playerData.numPlayers):
+        for row in range(9):
+            for col in range(9):
+                if row == playerHomes[ch][0] and col == playerHomes[ch][1]:
+                    neigh = playerData.board[row][col].neighbors
+                    player = playerData.Player(row, col, [row, col], ch+1)
+                    player.neighbors = neigh
+                    playerData.board[row][col] = player
+    return playerData
+
+def last_move(playerData, move):
+    """
+        Parts 1 - 4
+    
+        The engine calls this function after any player module, including this one,
+        makes a valid move in the game.
+        
+        The engine also calls this function repeatedly at the start of the game if
+        there have been some moves specified in the configuration file's PRE_MOVE
+        variable.
+
+        The student player module updates its data structure with the information
+        about the move.
+
+        Parameters
+            playerData: this player's data, originally built by this
+                        module in init()
+        
+            move: the instance of PlayerMove that describes the move just made
+        
+        returns:
+            this player module's updated (playerData) data structure
+    """
+    
+    r1 = move.r1
+    r2 = move.r2
+    c1 = move.c1
+    c2 = move.c2
+    tempLogList=[]
+    #### REMOVING NEIGHBORS ####
+    if move.move == True:
+        tempLogList.append("Player"+str(move.playerId))
+        #### Player stuff andstuff ####
+        oldCoords = [r1, c1]
+        newCoords = [r2, c2]
+        tempLogList.append(oldCoords)
+        tempLogList.append(newCoords)
+        for row in range(len(playerData.board)):
+            for col in range(len(playerData.board)):
+                if playerData.board[row][col].coords == oldCoords:
+                    tile = Tile(r1, c1, oldCoords)
+                    neigh = playerData.board[row][col].neighbors
+                    tile.neighbors = neigh
+                    playerData.board[row][col] = tile
+                    break
+        for row in range(len(playerData.board)):
+            for col in range(len(playerData.board)):
+                if playerData.board[row][col].coords == newCoords:
+                    player = Player(r1, c1, newCoords, PlayerMove.playerId)
+                    neigh = playerData.board[row][col].neighbors
+                    player.neighbors = neigh
+                    playerData.board[row][col] = player
+                    playerData.playerLocations.append((newCoords[0], newCoords[1]))
+                    playerData.playerLocations.remove((oldCoords[0], oldCoords[1]))
+                    break
+    elif move.move==False:
+        tempLogList.append("Wall"+str(str(move.playerId)))
+        #### Wall stuff and stuff ####
+        if r1 == r2:
+            playerData.walls.append([[r1, c1], [r2, c2-1]])
+            tempLogList.append([r1, c1])
+            tempLogList.append([r2, c2-1])
+            if playerData.board[r1-1][c1] in playerData.board[r1][c1].neighbors:
+                playerData.board[r1][c1].neighbors.remove(playerData.board[r1-1][c1]) 
+            if playerData.board[r1][c1] in playerData.board[r1-1][c1].neighbors:
+                playerData.board[r1-1][c1].neighbors.remove(playerData.board[r1][c1])
+            if playerData.board[r2-1][c2-1] in playerData.board[r2][c2-1].neighbors:
+                playerData.board[r2][c2-1].neighbors.remove(playerData.board[r2-1][c2-1]) 
+            if playerData.board[r2][c2-1] in playerData.board[r2-1][c2-1].neighbors:
+                playerData.board[r2-1][c2-1].neighbors.remove(playerData.board[r2][c2-1])
+        elif c1 == c2:
+            playerData.walls.append([[r1, c1], [r2, c2-1]])
+            if playerData.board[r1][c1-1] in playerData.board[r1][c1].neighbors:
+                playerData.board[r1][c1].neighbors.remove(playerData.board[r1][c1-1])
+            if playerData.board[r1][c1] in playerData.board[r1][c1-1].neighbors:    
+                playerData.board[r1][c1-1].neighbors.remove(playerData.board[r1][c1])
+            if playerData.board[r2-1][c2-1] in playerData.board[r2-1][c2].neighbors:
+                playerData.board[r2-1][c2].neighbors.remove(playerData.board[r2-1][c2-1])
+            if playerData.board[r2-1][c2] in playerData.board[r2-1][c2-1].neighbors:
+                playerData.board[r2-1][c2-1].neighbors.remove(playerData.board[r2-1][c2])
+    playerData.moveLog.append(tempLogList)    
+    return playerData
+
+def get_neighbors(playerData, r, c):
+    """
+        Part 1
+    
+        This function is used only in part 1 mode. The engine calls it after
+        all PRE_MOVEs have been made. (See the config.cfg file.)
+
+        Parameters
+            playerData: this player's data, originally built by this
+                        module in init()
+            r: row coordinate of starting position for this player's piece
+            c: column coordinate of starting position for this player's piece
+        
+        returns:
+            a list of coordinate pairs (a list of lists, e.g. [[0,0], [0,2]],
+            not a list of tuples) denoting all the reachable neighboring squares
+            from the given coordinate. "Neighboring" means exactly one move
+            away.
+    """
+    # Use your playerData object to get a list of neighbors    
+    result = []
+    for ch in range(0, len(playerData.board[r][c].neighbors)):
+        result.append(playerData.board[r][c].neighbors[ch].coords)
+    return result
+
+def get_shortest_path(playerData, r1, c1, r2, c2):
+    """
+        Part 1
+    
+        This function is only called in part 1 mode. The engine calls it when
+        a shortest path is requested by the user via the graphical interface.
+
+        Parameters
+            playerData: this player's data, originally built by this
+                        module in init()
+            r1: row coordinate of starting position
+            c1: column coordinate of starting position
+            r2: row coordinate of destination position
+            c2: column coordinate of destination position
+        
+        returns:
+            a sequence of coordinate tuples that form the shortest path
+            from the starting position to the destination, inclusive.
+            The format is a tuple or list of coordinate pairs (row,column)
+            ordered from starting position to destination position.
+            An example would be [(0,0), (0,1), (1,1)].
+            If there is no path, an empty list, [], should be returned.
+    """
+    
+    # Use your playerData object to find a shortest path using breadth-first
+    # search (BFS).
+    # You will probably find the get_neighbors function helpful.
+    start = playerData.board[r1][c1]
+    end = playerData.board[r2][c2]
+    def search_BFS(graph, start, end):
+        dispenser=Queue()
+        enqueue(start, dispenser)
+        visited={}
+        visited[start]=None
+        while not emptyQueue(dispenser):
+            current=front(dispenser)
+            dequeue(dispenser)
+            if current==end:
+                break
+            for neighbor in current.neighbors:
+                if neighbor not in visited:
+                    visited[neighbor]=current
+                    enqueue(neighbor, dispenser)
+                    
+        return constructPath(visited, start, end)
+    
+    def constructPath(visited, start, end):
+        stack=Stack()
+        if end in visited:
+            tmp = end
+            while tmp != start:
+                push(tmp, stack)
+                tmp=visited[tmp]
+            push(start, stack)
+        path=[]
+        while not emptyStack(stack):
+            path.append(top(stack).coords)
+            pop(stack)
+        return path
+    return search_BFS(playerData.board, start, end)
+
+def move(playerData):
+    """
+        Parts 2 - 4
+    
+        The engine calls this function at each moment when it is this
+        player's turn to make a move. This function decides what kind of
+        move, wall placement or piece move, to make.
+        
+        Parameters
+            playerData: this player's data, originally built by this
+                        module in init()
+        
+        returns:
+            the move chosen, in the form of an instance of PlayerMove
+    """
+     # This function is called when it's your turn to move
+        
+    # Here you'll figure out what kind of move to make and then return that
+    # move. We recommend that you don't update your data structures here,
+    # but rather in last_move. If you do it here, you'll need a special case
+    # check in last_move to make sure you don't update your data structures
+    # twice.
+        
+    # In part 3, any legal move is acceptable. In part 4, you will want to
+    # implement a strategy
+    
+    # Placeholder, fill in these values yourself
+    print(playerData.moveLog)
+    goalNodeList=[]
+    pathList=[]
+    optPath=[]
+    jumpPathList=[]
+    hasMoved=False
+    canEscape=False
+    lastWall=True
+    for i in range(99):
+        optPath.append(i)
+    valid=True
+    randValid=False
+    i =len(playerData.moveLog)-1
+    while i>-1:
+        if playerData.moveLog[i][0]==("Player"+str(playerData.playerId)):
+            lastWall=False
+            break
+        elif playerData.moveLog[i][0]==("Wall"+str(playerData.playerId)):
+            lastWall=True
+            break
+        i-=1
+    for move in playerData.moveLog:
+        if move[0]=="Player"+str(playerData.playerId):
+            hasMoved=True
+    if not hasMoved:
+        player=playerData.Player( playerData.playerHomes[playerData.playerId-1][0],\
+                                   playerData.playerHomes[playerData.playerId-1][1],\
+                                   [playerData.playerId-1], playerData.playerId)
+    if len(playerData.moveLog)==0:
+        player=playerData.Player( playerData.playerHomes[playerData.playerId-1][0],\
+                                   playerData.playerHomes[playerData.playerId-1][1],\
+                                   [playerData.playerId-1], playerData.playerId)
+    
+    else:
+        j=len(playerData.moveLog)-1
+        while j>-1:
+            if playerData.moveLog[j][0]=="Player"+str(playerData.playerId):
+                player=playerData.Player(playerData.moveLog[j][2][0], playerData.moveLog[j][2][1], \
+                                         playerData.moveLog[j][2], playerData.playerId)
+                break
+            j-=1
+        
+    for col in range(9):
+        goalNodeList.append([8-playerData.playerHomes[playerData.playerId-1][0], col])
+    for goalNode in goalNodeList:
+        path=get_shortest_path(playerData, player.r, player.c, goalNode[0], goalNode[1])
+        pathList.append(path)
+    for path in pathList:
+        if path != []:
+            if len(path)<len(optPath):
+                optPath=path
+    
+    if len(playerData.moveLog)==0:
+        move=PlayerMove(playerData.playerId, True, player.r, player.c, optPath[1][0], optPath[1][1])
+        return move
+    
+    elif lastWall and playerData.numWalls!=0:
+        ####Jumping loop
+        print(playerData.board[player.r][player.c].neighbors)
+        for neighbor in playerData.board[player.r][player.c].neighbors:
+            print(neighbor.coords)
+            if isinstance(playerData.board[neighbor.coords[0]][neighbor.coords[1]], Player):
+                    """
+                    for player1 in playerData.playerLocations:
+                    player1=[player1[0], player1[1]]
+                    if neighbor.coords==player1:
+                    """
+                    isWall=False;
+                    print("players neighbors")
+                    for otherNeighbor in playerData.board[neighbor.coords[0]][neighbor.coords[1]].neighbors:
+                        print("neighbors coords: " +str(neighbor.coords))
+                        
+                        print("neighbors neighbors: " +str(otherNeighbor.neighbors))
+                        ###CARDINAL DIRECTION NEiGHBORS
+                        print(str(isinstance(playerData.board[player.r-1][player.c], Wall))+" r-1")
+                        print(str(isinstance(playerData.board[player.r-1][player.c], Wall))+ " r")
+                        for move in playerData.moveLog:
+                            if move[0]=="Wall1" or move[0]=="Wall2" or move[0]=="Wall3" or move[0]=="Wall4":
+                                if move[1]==[player.r-1][player.c]:
+                                    isWall=True
+                        if ((otherNeighbor.coords==[player.r+2, player.c] and  not isinstance(playerData.board[player.r+1][player.c], Wall) and  not isinstance(playerData.board[player.r][player.c], Wall))or\
+                        (otherNeighbor.coords==[player.r-2, player.c] and  not isinstance(playerData.board[player.r-1][player.c], Wall)  and  not isinstance(playerData.board[player.r][player.c], Wall))or\
+                        (otherNeighbor.coords==[player.r, player.c+2] and  not isinstance(playerData.board[player.r][player.c+1], Wall)  and  not isinstance(playerData.board[player.r][player.c], Wall))or\
+                        (otherNeighbor.coords==[player.r, player.c-2] and  not isinstance(playerData.board[player.r][player.c-1], Wall) and  not isinstance(playerData.board[player.r][player.c], Wall))) and not isWall:
+                            print("cardinalling")
+                            for goalNode in goalNodeList:
+                                path2=get_shortest_path(playerData, otherNeighbor.coords[0], otherNeighbor.coords[1],\
+                                                         goalNode[0], goalNode[1])
+                                jumpPathList.append(path2)
+                            for path in jumpPathList:
+                                if len(path)<=len(optPath):
+                                    if path!=[]:
+                                        optPath=path
+                                        print("reopted")
+                            print(optPath)
+                            if not isinstance(playerData.board[optPath[1][0]-1][optPath[1][1]], Wall) and\
+                            not isinstance(playerData.board[optPath[1][0]+1][optPath[1][1]], Wall) and\
+                            not isinstance(playerData.board[optPath[1][0]][optPath[1][1]-1], Wall) and \
+                            not isinstance(playerData.board[optPath[1][0]-1][optPath[1][1]+1], Wall):
+                                if [player.r, player.c]!=[optPath[0][0], optPath[0][1]]:
+                                    print("double jump")
+                                    move=PlayerMove(playerData.playerId, True, player.r, player.c, optPath[0][0], optPath[0][1])
+                                    return move
+                        ###L-JUMP otherNeighborS
+                        
+                        elif otherNeighbor.coords==[player.r+1, player.c-1] or otherNeighbor.coords==[player.r+1, player.c+1] or\
+                        otherNeighbor.coords==[player.r-1, player.c-1] or otherNeighbor.coords==[player.r-1, player.c+1]:
+                            print("L-Jumping")
+                            for goalNode in goalNodeList:
+                                path3=get_shortest_path(playerData, otherNeighbor[0], otherNeighbor[1]\
+                                                        , goalNode[0], goalNode[1])
+                                jumpPathList.append(path3)
+                            for path in jumpPathList:
+                                if len(path)<=len(optPath):
+                                    if path!= []:
+                                        optPath=path
+                            if not isinstance(playerData.board[optPath[0][0]][optPath[0][1]], Wall):
+                                if [player.r, player.c]!=[optPath[0][0], optPath[0][1]]:
+                                    move=PlayerMove(playerData.playerId, True, player.r, player.c, optPath[0][0]\
+                                                    , optPath[0][1])
+                                    return move
+        ###Non-jump move
+        print("Normal Move")
+        for i in range(99):
+            optPath.append(i)
+        for goalNode in goalNodeList:
+            path=get_shortest_path(playerData, player.r, player.c, goalNode[0], goalNode[1])
+            pathList.append(path)
+        for path in pathList:
+            if path != []:
+                if len(path)<len(optPath):
+                    optPath=path
+        print(optPath)
+        if optPath==[] and player.numWalls==0:
+            move=PlayerMove(playerData.playerId, True, player.r, player.c, player.r, player.c)
+        move=PlayerMove(playerData.playerId, True, player.r, player.c, optPath[1][0], optPath[1][1]) 
+        return move
+    
+    else:
+        while True:
+            randValid=False
+            while randValid==False:
+                isVert=random.randrange(0, 2)
+                row1 = random.randrange(0, 9)
+                col1 = random.randrange(0, 9)
+                if isVert==1:
+                    if col1==8 or col1==0:
+                        randValid=False
+                    elif row1>7:
+                        row2=row1
+                        row1-=2
+                        col2=col1
+                        randValid=True
+                        break
+                    else:
+                        row2=row1+2
+                        col2=col1
+                        randValid=True
+                        break
+                else:
+                    if row1==0 or row1==8 :
+                        randValid=False
+                    elif col1>7:
+                        col2=col1
+                        col1-=2
+                        row2=row1
+                        randValid=True
+                        break
+                    else:
+                        row2=row1
+                        col2=col1+2
+                        randValid=True
+                        break
+            if len(playerData.walls)==0:
+                move=PlayerMove(playerData.playerId, False, row1, col1, row2, col2)
+                return move
+            else:
+                valid=True
+                for wall in playerData.walls:
+                    if row1==wall[0][0] and row2==wall[1][0] and col1==wall[0][1] and col2==wall[1][1]:
+                        valid=False
+                        break
+                    elif col1==col2 and wall[0][1]==wall[1][1] and col1==wall[0][1] and row1+1==wall[1][0]-1:
+                        valid=False
+                        break
+                    elif row1==row2 and wall[0][0]==wall[1][0] and row1==wall[0][0] and col1+1==wall[1][1]-1:
+                        valid=False
+                        break
+                    elif row1==wall[0][0] and row2==wall[1][0] and col2-1==wall[1][1]:
+                        #horiazantal single overlap
+                        valid=False
+                        break
+                    elif row1==wall[0][0] and row2==wall[1][0] and col2+1==wall[1][1]:
+                        #single horizantle overlap
+                        valid=False
+                        break
+                    elif col1==wall[0][1] and col2==wall[1][1] and row2+1==wall[1][0]:
+                        #single vert overlap
+                        valid=False
+                        break
+                    elif col1==wall[0][1] and col2==wall[1][1] and row2-1==wall[1][0]:
+                        #single vert overlap
+                        valid=False
+                        break
+                    elif row1+1==wall[0][0] and col1+1==wall[1][1]:
+                        #cross overlap
+                        valid=False
+                        break
+                    elif row1+1==wall[0][0]+1==row2-1==wall[1][0]+1==col1+1==wall[1][0]+1==col2-1==wall[1][1]-1:
+                        #super cross/overlap check
+                        valid=False
+                        break
+                    elif row1-1==wall[0][0] and col1-1==wall[1][1]:
+                        #cross overlap
+                        valid=False
+                        break
+                    elif row1==row2 and wall[0][0]==wall[1][0] and row1==wall[0][0] and col1+1==wall[1][1]-1: 
+                        valid=False
+                        break
+                    elif col1==col2 and wall[0][1]==wall[1][1] and col1==wall[0][1] and \
+                    ((row1+1==wall[0][0] or row1-1==wall[0][0]) or (row2-1==wall[0][1] or row2+1==wall[0][1])):
+                        #vert overlap attempt 2
+                        valid=False
+                        break
+                    elif row1==row2 and wall[0][0]==wall[1][0] and wall[0][0]==row1 and\
+                     ((col1+1==wall[0][1] or col1-1==wall[0][1]) or (col2-1==wall[1][1] or col2+1==wall[1][1])):
+                        #horiz overlap attempt 2
+                        valid=False
+                        break
+                    elif col1==col2 and wall[0][1]==wall[1][1] and col1==wall[0][1] and row1+1==wall[1][0]-1:
+                        valid=False
+                        break
+                    elif row1-1==wall[1][0]+1 and col1-1==wall[1][1]+1:
+                        valid=False
+                        break
+                    elif row1==row2 and wall[0][0]==wall[1][0] and row1==wall[0][0] and col1-1==wall[1][1]+1: 
+                        valid=False
+                        break
+                    elif col1==col2 and wall[0][1]==wall[1][1] and col1==wall[0][1] and row1-1==wall[1][0]+1:
+                        valid=False
+                        break
+                    elif col2-1==wall[0][0]+1 and wall[1][0]+1==row2-1:
+                        valid=False
+                        break
+                    elif [row1+1, col1]==[wall[0][0], wall[0][1]+1]:
+                        valid=False
+                        break
+                    elif [row1, col1+1]==[wall[0][0]+1, wall[0][1]]:
+                        valid=False
+                        break
+                    elif [row1+1, col1]==[wall[0][0], wall[0][1]]:
+                        valid=False
+                        break
+                    elif [row1-1, col1]==[wall[0][0], wall[0][1]]:
+                        valid=False
+                        break
+                    elif [row1, col1-1]==[wall[0][0], wall[0][1]]:
+                        valid=False
+                        break
+                    elif [row1, col1+1]==[wall[0][0], wall[0][1]]:
+                        valid=False
+                    elif [[row1+1, col1], [row2+1, col2]]==[[wall[0][0], wall[0][1]], [wall[1][0], wall[1][1]]]:
+                        valid=False
+                        break
+                    elif [[row1-1, col1], [row2-1, col2]]==[[wall[0][0], wall[0][1]], [wall[1][0], wall[1][1]]]:
+                        valid=False
+                        break
+                    elif [[row1, col1+1], [row2, col2+1]]==[[wall[0][0], wall[0][1]], [wall[1][0], wall[1][1]]]:
+                        valid=False
+                        break
+                    elif [[row1, col1-1], [row2, col2-1]]==[[wall[0][0], wall[0][1]], [wall[1][0], wall[1][1]]]:
+                        valid=False
+                        break
+                    elif playerData.numWalls==0:
+                        valid=False
+                        break
+                if valid:
+                    temp = (playerData)
+                    if row1 == row2:
+                        firstWall = [row1, col1]
+                        secondWall = [row2, col2-1]
+                        temp.walls.append([firstWall, secondWall])
+                        
+                        if temp.board[row1-1][col1] in temp.board[row1][col1].neighbors:
+                            temp.board[row1][col1].neighbors.remove(temp.board[row1-1][col1]) 
+                        if temp.board[row1][col1] in temp.board[row1-1][col1].neighbors:
+                            temp.board[row1-1][col1].neighbors.remove(temp.board[row1][col1])
+                        if temp.board[row2-1][col2-1] in temp.board[row2][col2-1].neighbors:
+                            temp.board[row2][col2-1].neighbors.remove(temp.board[row2-1][col2-1]) 
+                        if temp.board[row2][col2-1] in temp.board[row2-1][col2-1].neighbors:
+                            temp.board[row2-1][col2-1].neighbors.remove(temp.board[row2][col2-1])
+                        
+                    elif col1 == col2:
+                        firstWall = [row1, col1]
+                        secondWall = [row2-1, col2]
+                        temp.walls.append([firstWall, secondWall])
+                        if temp.board[row1][col1-1] in temp.board[row1][col1].neighbors:
+                            temp.board[row1][col1].neighbors.remove(temp.board[row1][col1-1])
+                        if temp.board[row1][col1] in temp.board[row1][col1-1].neighbors:    
+                            temp.board[row1][col1-1].neighbors.remove(temp.board[row1][col1])
+                        if temp.board[row2-1][col2-1] in temp.board[row2-1][col2].neighbors:
+                            temp.board[row2-1][col2].neighbors.remove(temp.board[row2-1][col2-1])
+                        if temp.board[row2-1][col2] in temp.board[row2-1][col2-1].neighbors:
+                            temp.board[row2-1][col2-1].neighbors.remove(temp.board[row2-1][col2])
+                    for node in goalNodeList:
+                        path=get_shortest_path(playerData, player.r, player.c, node[0], node[1])
+                        if path!=[]:
+                            canEscape=True
+                            break
+                    if not canEscape:
+                        valid=False
+                        break
+                    
+                    
+                    #if get_shortest_path(playerData, row1, col1, row2, col2)==None:
+                     #   valid=False
+                    
+            if valid:
+                playerData.numWalls-=1
+                move=PlayerMove(playerData.playerId, False, row1, col1, row2, col2)
+                return move
+    #move = PlayerMove(-1, False, -1, -1, -1, -1)
+    
+    return move
+
+def player_invalidated(playerData, playerId):
+    """
+        Part 3 - 4
+    
+        The engine calls this function when another player has made
+        an invalid move or has raised an exception ("crashed").
+        
+        Parameters
+            playerData: this player's data, originally built by this
+                        module in init()
+            playerId: the ID of the player being invalidated
+        
+        returns:
+            this player's updated playerData
+    """
+    
+    # Update your player data to reflect the invalidation.
+    # FYI, the player's piece is removed from the board,
+    # but not its walls.
+    
+    # When you are working on part 4, there is a small chance you'd
+    # want to change your strategy when a player is kicked out.
+    """
+    for row in range(9):
+        for col in range(9):
+            if isinstance([row, col], Player):
+                if player.playerID==playerID:
+                    pass
+            if row == playerHomes[playerID][0] and col == playerHomes[PlayerID][1]:
+                neigh = playerData.board[row][col].neighbors
+                player = playerData.Player(row, col, [row, col], ch+1)
+                player.neighbors = neigh
+                playerData.board[row][col] = player
+    """
+    return playerData
